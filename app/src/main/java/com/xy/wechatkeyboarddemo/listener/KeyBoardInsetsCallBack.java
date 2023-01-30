@@ -1,4 +1,6 @@
-package com.xy.wechatkeyboarddemo;
+package com.xy.wechatkeyboarddemo.listener;
+
+import android.util.Log;
 
 import androidx.annotation.NonNull;
 import androidx.core.graphics.Insets;
@@ -23,7 +25,14 @@ public class KeyBoardInsetsCallBack extends RootViewDeferringInsetsCallback {
 
     @Override
     public void onPrepare(@NonNull WindowInsetsAnimationCompat animation) {
-        keyboardListener.onAnimStart();
+
+    }
+
+    @NonNull
+    @Override
+    public WindowInsetsAnimationCompat.BoundsCompat onStart(@NonNull WindowInsetsAnimationCompat animation, @NonNull WindowInsetsAnimationCompat.BoundsCompat bounds) {
+        keyboardListener.onAnimStart(bounds.getUpperBound().bottom - bounds.getLowerBound().bottom);
+        return super.onStart(animation, bounds);
     }
 
     @NonNull
@@ -37,12 +46,13 @@ public class KeyBoardInsetsCallBack extends RootViewDeferringInsetsCallback {
         // the insets to be >= 0, to make sure we don't use negative insets.
         Insets subtract = Insets.subtract(typesInset, otherInset);
         Insets diff = Insets.max(subtract, Insets.NONE);
-        keyboardListener.onAnimDoing(diff.left - diff.right,diff.top - diff.bottom);
+        keyboardListener.onAnimDoing(diff.left - diff.right, diff.top - diff.bottom);
         return insets;
     }
 
     @Override
     public void onEnd(@NonNull WindowInsetsAnimationCompat animation) {
+        Log.e("ssss", "onEnd" + animation.getFraction());
         keyboardListener.onAnimEnd();
     }
 }

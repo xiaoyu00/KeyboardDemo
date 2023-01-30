@@ -1,4 +1,4 @@
-package com.xy.wechatkeyboarddemo;
+package com.xy.wechatkeyboarddemo.listener;
 
 import android.view.View;
 

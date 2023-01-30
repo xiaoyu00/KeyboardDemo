@@ -4,6 +4,7 @@ import android.app.Activity;
 import android.content.Context;
 import android.graphics.Rect;
 import android.os.IBinder;
+import android.util.Log;
 import android.view.View;
 import android.view.inputmethod.InputMethodManager;
 
@@ -53,7 +54,7 @@ public class SoftKeyBoardUtil {
         int screenHeight = decorView.getHeight();
         Rect rect = new Rect();
         decorView.getWindowVisibleDisplayFrame(rect);
-        return screenHeight - rect.bottom - ScreenUtils.INSTANCE.getNavigateBarHeight(context) >= 0;
+        return screenHeight - rect.bottom - ScreenUtils.INSTANCE.getNavigateBarHeight(context) > 0;
     }
 }
 

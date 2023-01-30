@@ -5,34 +5,37 @@ import android.annotation.SuppressLint
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.view.MotionEvent
-import android.view.View
 import android.view.ViewTreeObserver
 import android.widget.*
 import androidx.core.view.ViewCompat
 import androidx.interpolator.view.animation.FastOutSlowInInterpolator
+import com.xy.wechatkeyboarddemo.listener.KeyBoardInsetsCallBack
+import com.xy.wechatkeyboarddemo.listener.KeyBoardListener
 import com.xy.wechatkeyboarddemo.utils.SoftKeyBoardUtil
 
-enum class PanelState {
-    HIDE,
-    SHOW,
-    HALF
+enum class HandleType {
+    ONLY_KEYBOARD_DOWN,
+    ONLY_KEYBOARD_UP,
+    ONLY_PANEL_UP,
+    ONLY_PANEL_DOWN,
+    KU_PD,
+    KD_PU
 }
 
 class MainActivity : AppCompatActivity() {
-    val SOFT_INPUT_HEIGHT = 835 // 软键盘高度
-    val PANEL_HEIGHT = 1000 //表情面板高度
+    var PANEL_HEIGHT = 1000 //表情面板高度
     lateinit var contentLayout: LinearLayout
     lateinit var listLayout: LinearLayout
     lateinit var inputEt: EditText
     lateinit var faceButton: ImageView
     private var panelAnimator: ObjectAnimator? = null
-    private var panelState = PanelState.HIDE
+    private var isPanelShow = false
+    private var handleType = HandleType.ONLY_KEYBOARD_UP
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
         init()
-        initListener()
     }
 
     @SuppressLint("ClickableViewAccessibility")
@@ -40,18 +43,23 @@ class MainActivity : AppCompatActivity() {
         contentLayout = findViewById(R.id.layout_content)
         listLayout = findViewById(R.id.layout_list)
         inputEt = findViewById(R.id.et_input)
-        faceButton=findViewById(R.id.face_btn)
+        faceButton = findViewById(R.id.face_btn)
         contentLayout.viewTreeObserver
             .addOnGlobalLayoutListener(object : ViewTreeObserver.OnGlobalLayoutListener {
                 override fun onGlobalLayout() {
                     contentLayout.viewTreeObserver.removeOnGlobalLayoutListener(this)
                     calculationLayoutSize()
+                    initListener()
                 }
             })
         inputEt.setOnTouchListener { _, event ->
             if (event.action == MotionEvent.ACTION_DOWN) {
-                panelHalf()
-                SoftKeyBoardUtil.showSoftInput(this@MainActivity);
+                handleType = if (isPanelShow) {
+                    HandleType.KU_PD
+                } else {
+                    HandleType.ONLY_KEYBOARD_UP
+                }
+                SoftKeyBoardUtil.showSoftInput(inputEt.context)
             }
             false
         }
@@ -65,6 +73,7 @@ class MainActivity : AppCompatActivity() {
         val layoutParams = contentLayout.layoutParams as FrameLayout.LayoutParams
         val layoutParams2 = listLayout.layoutParams as LinearLayout.LayoutParams
         val cHeight: Int = contentLayout.height
+        PANEL_HEIGHT=(cHeight*0.45).toInt()
         layoutParams2.height = cHeight
         listLayout.layoutParams = layoutParams2
         layoutParams.height = cHeight + PANEL_HEIGHT
@@ -72,53 +81,53 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun initListener() {
-        val keyBoardInsetsCallBack = KeyBoardInsetsCallBack(object : KeyBoardListener {
-            override fun onAnimStart() {
-                if(SoftKeyBoardUtil.isSoftInputShown(this@MainActivity)){
-                    panelState=PanelState.HIDE
+        val keyBoardInsetsCallBack =
+            KeyBoardInsetsCallBack(object :
+                KeyBoardListener {
+                override fun onAnimStart(moveDistance: Int) {
+                    isPanelShow = when (handleType) {
+                        HandleType.ONLY_PANEL_DOWN -> false
+                        HandleType.ONLY_PANEL_UP -> true
+                        HandleType.ONLY_KEYBOARD_DOWN -> false
+                        HandleType.ONLY_KEYBOARD_UP -> false
+                        HandleType.KD_PU -> {
+                            panelAnimateTo(-PANEL_HEIGHT)
+                            true
+                        }
+                        HandleType.KU_PD -> {
+                            panelAnimateTo(-moveDistance)
+                            false
+                        }
+                    }
                 }
-            }
-            override fun onAnimDoing(offsetX: Int, offsetY: Int) {
-                if (panelState != PanelState.SHOW && panelAnimator?.isRunning != true) {
-                    contentLayout.translationY = offsetY.toFloat()
-                }
-            }
 
-            override fun onAnimEnd() {}
-        })
-        ViewCompat.setWindowInsetsAnimationCallback(inputEt.rootView, keyBoardInsetsCallBack)
+                override fun onAnimDoing(offsetX: Int, offsetY: Int) {
+                    if (handleType != HandleType.KU_PD && handleType != HandleType.KD_PU) {
+                        contentLayout.translationY = offsetY.toFloat()
+                    }
+
+                }
+
+                override fun onAnimEnd() {
+                    handleType = HandleType.ONLY_KEYBOARD_UP
+                }
+            })
+        ViewCompat.setWindowInsetsAnimationCallback(window.decorView, keyBoardInsetsCallBack)
     }
 
     private fun showKeyBoardAndPanel() {
-        if (panelState == PanelState.SHOW) {
-            panelHalf()
+        if (isPanelShow) {
+            handleType = HandleType.KU_PD
             SoftKeyBoardUtil.showSoftInput(inputEt.context)
         } else {
             if (SoftKeyBoardUtil.isSoftInputShown(this@MainActivity)) {
                 SoftKeyBoardUtil.hideSoftInput(this@MainActivity, inputEt.windowToken)
+                handleType = HandleType.KD_PU
+            } else {
+                handleType = HandleType.ONLY_PANEL_UP
+                panelAnimateTo(-PANEL_HEIGHT)
             }
-            panelShow()
-        }
-    }
-
-    private fun panelHalf() {
-        if (panelState != PanelState.HALF) {
-            panelAnimateTo(-SOFT_INPUT_HEIGHT)
-            panelState = PanelState.HALF
-        }
-    }
-
-    private fun panelShow() {
-        if (panelState != PanelState.SHOW) {
-            panelAnimateTo(-PANEL_HEIGHT)
-            panelState = PanelState.SHOW
-        }
-    }
-
-    private fun panelHide() {
-        if (panelState != PanelState.HIDE) {
-            panelAnimateTo(0)
-            panelState = PanelState.HIDE
+            isPanelShow = true
         }
     }
 
@@ -129,8 +138,9 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onBackPressed() {
-        if(panelState != PanelState.HIDE){
-            panelHide()
+        if (isPanelShow) {
+            handleType = HandleType.ONLY_PANEL_DOWN
+            panelAnimateTo(0)
             return
         }
         super.onBackPressed()
