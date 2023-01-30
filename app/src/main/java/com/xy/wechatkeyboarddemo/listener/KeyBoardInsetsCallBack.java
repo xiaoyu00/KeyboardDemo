@@ -52,7 +52,6 @@ public class KeyBoardInsetsCallBack extends RootViewDeferringInsetsCallback {
 
     @Override
     public void onEnd(@NonNull WindowInsetsAnimationCompat animation) {
-        Log.e("ssss", "onEnd" + animation.getFraction());
         keyboardListener.onAnimEnd();
     }
 }
